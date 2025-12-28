@@ -15,7 +15,7 @@
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable .min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -513,6 +513,8 @@
   };
 
   console.log("Firebase sync ready. tripId =", tripId);
+    console.log("AUTH currentUser =", auth.currentUser);
+console.log("__NYC_SYNC__ =", window.__NYC_SYNC__);
 </script>
     
   <script>
@@ -732,6 +734,7 @@ watch(activeTab, (tab) => {
   if (tab === "itinerary") initSortable();
 });
 
+console.log("mounted. sync =", window.__NYC_SYNC__);
 onMounted(() => {
   // 先讀本機
   const saved = localStorage.getItem("nyc_street_v6");
@@ -744,16 +747,25 @@ onMounted(() => {
   }
 
   // 再接 Firestore
-  const sync = window.__NYC_SYNC__;
+  const waitSync = async () => {
+  for (let i = 0; i < 50; i++) {          // 最多等 5 秒
+    if (window.__NYC_SYNC__) return window.__NYC_SYNC__;
+    await new Promise(r => setTimeout(r, 100));
+  }
+  return null;
+};
+
+onMounted(async () => {
+  ...
+  const sync = await waitSync();
+  console.log("sync ready?", sync);
+
   if (!sync) return;
 
   firestoreReady = true;
 
-  sync.onSnapshot(sync.tripRef, (snap) => {
-    if (!snap.exists()) {
-      save();
-      return;
-    }
+  sync.onSnapshot(sync.tripRef, (snap) => { ... });
+});
 
     const d = snap.data();
     applyingRemote = true;
