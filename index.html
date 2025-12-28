@@ -461,276 +461,263 @@
   console.log("Firebase sync ready. tripId =", tripId);
 </script>
     
-    <script>
-        const { createApp, ref, computed, onMounted } = Vue;
+  <script>
+  const { createApp, ref, computed, onMounted } = Vue;
 
-        createApp({
-            setup() {
-                const activeTab = ref('home');
-                const selectedDayIdx = ref(0);
-                const bucketInput = ref('');
-                // 首頁照片 State，預設為暗色背景
-                const homePhoto = ref('https://images.unsplash.com/photo-1496442226666-8d4a0e62e6e9?q=80&w=2070&auto=format&fit=crop'); 
-                const fileInput = ref(null);
+  createApp({
+    setup() {
+      // ====== state ======
+      const activeTab = ref("home");
+      const selectedDayIdx = ref(0);
+      const bucketInput = ref("");
+      const homePhoto = ref(
+        "https://images.unsplash.com/photo-1496442226666-8d4a0e62e6e9?q=80&w=2070&auto=format&fit=crop"
+      );
+      const fileInput = ref(null);
 
-                const itinerary = ref([
-                    { date: '2026-01-16', weekday: 'FRI', label: 'THE ARRIVAL', temp: '2', weatherIcon: 'fas fa-snowflake', events: [] },
-                    { date: '2026-01-17', weekday: 'SAT', label: 'UPTOWN BEATS', temp: '4', weatherIcon: 'fas fa-cloud', events: [] },
-                    { date: '2026-01-18', weekday: 'SUN', label: 'DOWNTOWN ART', temp: '3', weatherIcon: 'fas fa-cloud-sun', events: [] },
-                    { date: '2026-01-19', weekday: 'MON', label: 'BROOKLYN DAY', temp: '5', weatherIcon: 'fas fa-sun', events: [] },
-                    { date: '2026-01-20', weekday: 'TUE', label: 'LAST VIBES', temp: '2', weatherIcon: 'fas fa-cloud-showers-heavy', events: [] }
-                ]);
+      const itinerary = ref([
+        { date: "2026-01-16", weekday: "FRI", label: "THE ARRIVAL", temp: "2", weatherIcon: "fas fa-snowflake", events: [] },
+        { date: "2026-01-17", weekday: "SAT", label: "UPTOWN BEATS", temp: "4", weatherIcon: "fas fa-cloud", events: [] },
+        { date: "2026-01-18", weekday: "SUN", label: "DOWNTOWN ART", temp: "3", weatherIcon: "fas fa-cloud-sun", events: [] },
+        { date: "2026-01-19", weekday: "MON", label: "BROOKLYN DAY", temp: "5", weatherIcon: "fas fa-sun", events: [] },
+        { date: "2026-01-20", weekday: "TUE", label: "LAST VIBES", temp: "2", weatherIcon: "fas fa-cloud-showers-heavy", events: [] }
+      ]);
 
-                const bucketList = ref([
-                    { name: 'MoMA', category: 'Museum 藝術館', hours: '10:30 - 17:30', link: 'https://maps.app.goo.gl/moma' },
-                    { name: "Joe's Pizza", category: 'Food 美食', hours: '10:00 - 04:00', link: 'https://maps.app.goo.gl/joespizza' },
-                    { name: 'Empire State Building', category: 'Views 景點', hours: '09:00 - 00:00', link: '' }
-                ]);
+      const bucketList = ref([
+        { name: "MoMA", category: "Museum 藝術館", hours: "10:30 - 17:30", link: "https://maps.app.goo.gl/moma" },
+        { name: "Joe's Pizza", category: "Food 美食", hours: "10:00 - 04:00", link: "https://maps.app.goo.gl/joespizza" },
+        { name: "Empire State Building", category: "Views 景點", hours: "09:00 - 00:00", link: "" }
+      ]);
 
-                const expenses = ref([]);
-                const newExp = ref({ desc: '', amount: null, payer: 'Yoann' });
-                
-                // 行程 Modal
-                const eventModal = ref({ show: false, time: '12:00', location: '', duration: '', bucketSelect: null });
-                
-                // Bucket List 編輯 Modal
-                const bucketEditModal = ref({ show: false, idx: -1, data: {} });
+      const expenses = ref([]);
+      const newExp = ref({ desc: "", amount: null, payer: "Yoann" });
 
-                const countdownDays = computed(() => {
-                    const start = new Date('2026-01-16');
-                    const diff = start - new Date();
-                    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-                });
+      const eventModal = ref({ show: false, time: "12:00", location: "", duration: "", bucketSelect: null });
+      const bucketEditModal = ref({ show: false, idx: -1, data: {} });
 
-                const totalExpense = computed(() => expenses.value.reduce((sum, e) => sum + e.amount, 0));
-                const settlement = computed(() => {
-                    const yoann = expenses.value.filter(e => e.payer === 'Yoann').reduce((sum, e) => sum + e.amount, 0);
-                    const karen = expenses.value.filter(e => e.payer === 'Karen').reduce((sum, e) => sum + e.amount, 0);
-                    const diff = (yoann - karen) / 2;
-                    if (diff === 0) return { message: '兩人平帳', diff: 0 };
-                    return { 
-                        message: diff > 0 ? `Karen 欠 Yoann $${diff.toFixed(2)}` : `Yoann 欠 Karen $${Math.abs(diff).toFixed(2)}`,
-                        diff: diff
-                    };
-                });
+      // ====== computed ======
+      const countdownDays = computed(() => {
+        const start = new Date("2026-01-16");
+        const diff = start - new Date();
+        return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+      });
 
-                const activeTabName = computed(() => {
-                    const map = { home: 'Street HQ', itinerary: 'Route Plan', bucket: 'Bucket List', expense: 'NYC Wallet' };
-                    return map[activeTab.value];
-                });
+      const totalExpense = computed(() => expenses.value.reduce((sum, e) => sum + (Number(e.amount) || 0), 0));
 
-                const getTabIcon = (tab) => {
-                    const icons = { home: 'fas fa-th-large', itinerary: 'fas fa-route', bucket: 'fas fa-star', expense: 'fas fa-wallet' };
-                    return icons[tab];
-                };
+      const settlement = computed(() => {
+        const yoann = expenses.value.filter(e => e.payer === "Yoann").reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+        const karen = expenses.value.filter(e => e.payer === "Karen").reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+        const diff = (yoann - karen) / 2;
+        if (diff === 0) return { message: "兩人平帳", diff: 0 };
+        return {
+          message: diff > 0 ? `Karen 欠 Yoann $${diff.toFixed(2)}` : `Yoann 欠 Karen $${Math.abs(diff).toFixed(2)}`,
+          diff
+        };
+      });
 
-                // 照片上傳處理
-                const handlePhotoUpload = (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
+      const activeTabName = computed(() => {
+        const map = { home: "Street HQ", itinerary: "Route Plan", bucket: "Bucket List", expense: "NYC Wallet" };
+        return map[activeTab.value];
+      });
 
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        // 這裡將圖片轉為 Base64 字串儲存
-                        homePhoto.value = event.target.result;
-                        save(); // 儲存到 LocalStorage
-                    };
-                    reader.readAsDataURL(file);
-                };
+      const getTabIcon = (tab) => {
+        const icons = { home: "fas fa-th-large", itinerary: "fas fa-route", bucket: "fas fa-star", expense: "fas fa-wallet" };
+        return icons[tab];
+      };
 
-                const smartAddBucket = () => {
-                    if (!bucketInput.value) return;
-                    let name = bucketInput.value;
-                    let link = '';
-                    if (bucketInput.value.includes('http')) {
-                        link = bucketInput.value;
-                        name = "Google Map Spot";
-                    }
-                    bucketList.value.unshift({ 
-                        name: name.substring(0, 30), 
-                        category: 'Explore 探索', 
-                        hours: '需查詢營業時間',
-                        link: link 
-                    });
-                    bucketInput.value = '';
-                    save();
-                };
+      // ====== sync flags & save (一定要放在所有會呼叫 save 的 function 之前) ======
+      let applyingRemote = false;
+      let firestoreReady = false;
 
-                const openMap = (query) => {
-                    if (!query) return;
-                    if (query.startsWith('http')) {
-                        window.open(query, '_blank');
-                    } else {
-                        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
-                    }
-                };
+      const save = async () => {
+        const payload = {
+          itinerary: itinerary.value,
+          bucketList: bucketList.value,
+          expenses: expenses.value,
+          homePhoto: homePhoto.value,
+          updatedAt: Date.now()
+        };
 
-                const openEventModal = () => {
-                    eventModal.value = { show: true, time: '12:00', location: '', duration: '', bucketSelect: null };
-                };
+        // 本機快取（離線可用）
+        try {
+          localStorage.setItem("nyc_street_v6", JSON.stringify(payload));
+        } catch (e) {
+          alert("儲存空間不足，請使用較小的圖片！");
+        }
 
-                // 開啟 Bucket 編輯彈窗
-                const openBucketEdit = (idx) => {
-                    bucketEditModal.value = {
-                        show: true,
-                        idx: idx,
-                        // 複製一份資料避免直接修改原始數據
-                        data: JSON.parse(JSON.stringify(bucketList.value[idx]))
-                    };
-                };
+        // 正在套用遠端資料時，不要回寫（避免回圈）
+        if (applyingRemote) return;
 
-                // 儲存 Bucket 修改
-                const saveBucketEdit = () => {
-                    if (bucketEditModal.value.idx > -1) {
-                        bucketList.value[bucketEditModal.value.idx] = bucketEditModal.value.data;
-                        save();
-                        bucketEditModal.value.show = false;
-                    }
-                };
+        // Firebase 還沒準備好就跳過
+        const sync = window.__NYC_SYNC__;
+        if (!sync || !firestoreReady) return;
 
-                const pickFromBucket = () => {
-                    if (eventModal.value.bucketSelect) {
-                        eventModal.value.location = eventModal.value.bucketSelect.name;
-                        eventModal.value.duration = '2h';
-                    }
-                };
+        try {
+          await sync.setDoc(sync.tripRef, payload, { merge: true });
+        } catch (err) {
+          console.warn("Firestore save failed:", err);
+        }
+      };
 
-                const saveEvent = () => {
-                    if (!eventModal.value.location) return;
-                    itinerary.value[selectedDayIdx.value].events.push({
-                        time: eventModal.value.time,
-                        location: eventModal.value.location,
-                        duration: eventModal.value.duration
-                    });
-                    itinerary.value[selectedDayIdx.value].events.sort((a, b) => a.time.localeCompare(b.time));
-                    eventModal.value.show = false;
-                    save();
-                };
+      // ====== actions ======
+      const handlePhotoUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-                const addExpense = () => {
-                    if (!newExp.value.desc || !newExp.value.amount) return;
-                    expenses.value.unshift({ ...newExp.value });
-                    newExp.value.desc = ''; newExp.value.amount = null;
-                    save();
-                };
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          homePhoto.value = event.target.result;
+          save();
+        };
+        reader.readAsDataURL(file);
+      };
 
-                let applyingRemote = false;   // 防止遠端更新造成回圈
-let firestoreReady = false;
+      const smartAddBucket = () => {
+        if (!bucketInput.value) return;
 
-const save = async () => {
-  const payload = {
-    itinerary: itinerary.value,
-    bucketList: bucketList.value,
-    expenses: expenses.value,
-    homePhoto: homePhoto.value,
-    updatedAt: Date.now()
-  };
+        let name = bucketInput.value;
+        let link = "";
+        if (bucketInput.value.includes("http")) {
+          link = bucketInput.value;
+          name = "Google Map Spot";
+        }
 
-  // ✅ 本機快取（離線可用）
-  try {
-    localStorage.setItem('nyc_street_v6', JSON.stringify(payload));
-  } catch (e) {
-    alert('儲存空間不足，請使用較小的圖片！');
-  }
+        bucketList.value.unshift({
+          name: name.substring(0, 30),
+          category: "Explore 探索",
+          hours: "需查詢營業時間",
+          link
+        });
 
-  // ✅ 正在套用遠端資料時，不要回寫
-  if (applyingRemote) return;
+        bucketInput.value = "";
+        save();
+      };
 
-  // ✅ Firebase 還沒準備好就跳過
-  const sync = window.__NYC_SYNC__;
-  if (!sync || !firestoreReady) return;
+      const openMap = (query) => {
+        if (!query) return;
+        if (query.startsWith("http")) window.open(query, "_blank");
+        else window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, "_blank");
+      };
 
-  try {
-    await sync.setDoc(sync.tripRef, payload, { merge: true });
-  } catch (err) {
-    console.warn("Firestore save failed:", err);
-  }
-};
+      const openEventModal = () => {
+        eventModal.value = { show: true, time: "12:00", location: "", duration: "", bucketSelect: null };
+      };
 
-                setup() {
-  // ...你原本的 refs/computed ...
+      const openBucketEdit = (idx) => {
+        bucketEditModal.value = {
+          show: true,
+          idx,
+          data: JSON.parse(JSON.stringify(bucketList.value[idx]))
+        };
+      };
 
-  let applyingRemote = false;
-  let firestoreReady = false;
+      const saveBucketEdit = () => {
+        if (bucketEditModal.value.idx > -1) {
+          bucketList.value[bucketEditModal.value.idx] = bucketEditModal.value.data;
+          save();
+          bucketEditModal.value.show = false;
+        }
+      };
 
-const save = async () => {
-  const payload = {
-    itinerary: itinerary.value,
-    bucketList: bucketList.value,
-    expenses: expenses.value,
-    homePhoto: homePhoto.value,
-    updatedAt: Date.now()
-  };
+      const pickFromBucket = () => {
+        if (eventModal.value.bucketSelect) {
+          eventModal.value.location = eventModal.value.bucketSelect.name;
+          eventModal.value.duration = "2h";
+        }
+      };
 
-  // ✅ 本機快取（離線也能用）
-  try {
-    localStorage.setItem("nyc_street_v6", JSON.stringify(payload));
-  } catch (e) {
-    alert("儲存空間不足，請使用較小的圖片！");
-  }
+      const saveEvent = () => {
+        if (!eventModal.value.location) return;
 
-  // ✅ 避免正在套用遠端資料時又回寫（防無限循環）
-  if (applyingRemote) return;
+        itinerary.value[selectedDayIdx.value].events.push({
+          time: eventModal.value.time,
+          location: eventModal.value.location,
+          duration: eventModal.value.duration
+        });
 
-  // ✅ Firestore 還沒準備好就不寫
-  const sync = window.__NYC_SYNC__;
-  if (!sync || !firestoreReady) return;
+        itinerary.value[selectedDayIdx.value].events.sort((a, b) => a.time.localeCompare(b.time));
+        eventModal.value.show = false;
+        save();
+      };
 
-  try {
-    await sync.setDoc(sync.tripRef, payload, { merge: true });
-  } catch (err) {
-    console.warn("Firestore save failed:", err);
-  }
-};
-                    
-  onMounted(() => {
-    // ✅ 先讀本機
-    const saved = localStorage.getItem('nyc_street_v6');
-    if (saved) {
-      const d = JSON.parse(saved);
-      itinerary.value = d.itinerary || itinerary.value;
-      bucketList.value = d.bucketList || bucketList.value;
-      expenses.value = d.expenses || expenses.value;
-      homePhoto.value = d.homePhoto || homePhoto.value;
+      const addExpense = () => {
+        if (!newExp.value.desc || !newExp.value.amount) return;
+
+        expenses.value.unshift({ ...newExp.value, amount: Number(newExp.value.amount) });
+        newExp.value.desc = "";
+        newExp.value.amount = null;
+        save();
+      };
+
+      // ====== mount: local first, then firestore realtime ======
+      onMounted(() => {
+        // 先讀本機
+        const saved = localStorage.getItem("nyc_street_v6");
+        if (saved) {
+          const d = JSON.parse(saved);
+          itinerary.value = d.itinerary || itinerary.value;
+          bucketList.value = d.bucketList || bucketList.value;
+          expenses.value = d.expenses || expenses.value;
+          homePhoto.value = d.homePhoto || homePhoto.value;
+        }
+
+        // 再接 Firestore
+        const sync = window.__NYC_SYNC__;
+        if (!sync) return;
+
+        firestoreReady = true;
+
+        sync.onSnapshot(sync.tripRef, (snap) => {
+          if (!snap.exists()) return;
+          const d = snap.data();
+
+          applyingRemote = true;
+
+          itinerary.value = d.itinerary || itinerary.value;
+          bucketList.value = d.bucketList || bucketList.value;
+          expenses.value = d.expenses || expenses.value;
+          homePhoto.value = d.homePhoto || homePhoto.value;
+
+          try { localStorage.setItem("nyc_street_v6", JSON.stringify(d)); } catch {}
+
+          applyingRemote = false;
+        });
+      });
+
+      // ====== expose to template ======
+      return {
+        activeTab,
+        activeTabName,
+        selectedDayIdx,
+        countdownDays,
+        itinerary,
+        bucketList,
+        bucketInput,
+        expenses,
+        newExp,
+        settlement,
+        totalExpense,
+        eventModal,
+        bucketEditModal,
+        homePhoto,
+        fileInput,
+        getTabIcon,
+        smartAddBucket,
+        openMap,
+        openEventModal,
+        saveEvent,
+        pickFromBucket,
+        addExpense,
+        handlePhotoUpload,
+        openBucketEdit,
+        saveBucketEdit,
+        deleteEvent: (i) => { itinerary.value[selectedDayIdx.value].events.splice(i, 1); save(); },
+        deleteBucket: (i) => { bucketList.value.splice(i, 1); save(); },
+        removeExpense: (i) => { expenses.value.splice(i, 1); save(); }
+      };
     }
-
-    // ✅ 再接 Firestore
-    const sync = window.__NYC_SYNC__;
-    if (!sync) return;
-
-    firestoreReady = true;
-
-    sync.onSnapshot(sync.tripRef, (snap) => {
-      if (!snap.exists()) return;
-      const d = snap.data();
-
-      applyingRemote = true;
-
-      itinerary.value = d.itinerary || itinerary.value;
-      bucketList.value = d.bucketList || bucketList.value;
-      expenses.value = d.expenses || expenses.value;
-      homePhoto.value = d.homePhoto || homePhoto.value;
-
-      try { localStorage.setItem('nyc_street_v6', JSON.stringify(d)); } catch {}
-
-      applyingRemote = false;
-    });
-  });
-
-  return {
-    // ✅ 這裡要放「你原本完整的回傳項目」
-    activeTab, activeTabName, selectedDayIdx, countdownDays,
-    itinerary, bucketList, bucketInput, expenses, newExp, settlement, totalExpense,
-    eventModal, bucketEditModal, homePhoto, fileInput,
-    getTabIcon, smartAddBucket, openMap, openEventModal, saveEvent, pickFromBucket,
-    addExpense, handlePhotoUpload, openBucketEdit, saveBucketEdit,
-    deleteEvent: (i) => { itinerary.value[selectedDayIdx.value].events.splice(i, 1); save(); },
-    deleteBucket: (i) => { bucketList.value.splice(i, 1); save(); },
-    removeExpense: (i) => { expenses.value.splice(i, 1); save(); }
-  };
-}
-
-    </script>
+  }).mount("#app");
+</script>
 
     <style>
         select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23FCCC0A'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1.2rem center; background-size: 1em; }
