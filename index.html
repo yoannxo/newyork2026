@@ -412,7 +412,55 @@
         </div>
 
     </div>
+    
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
+    const firebaseConfig = {
+    apiKey: "AIzaSyBpkGy2MYEEP83qalawKn0f-8XDmtszh0o",
+    authDomain: "newyork2026-ad899.firebaseapp.com",
+    projectId: "newyork2026-ad899",
+    storageBucket: "newyork2026-ad899.firebasestorage.app",
+    messagingSenderId: "604312975718",
+    appId: "1:604312975718:web:7b27356012ab249a76f0a7",
+    measurementId: "G-ZQRG3K6Z4P"
+  };
+
+  // ✅ 2) 初始化
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  // ✅ 3) 產生/取得 tripId：用網址 ?trip=xxxxx 分享給朋友
+  function getTripId() {
+    const url = new URL(window.location.href);
+    let trip = url.searchParams.get("trip");
+    if (!trip) {
+      trip = crypto.randomUUID().replaceAll("-", ""); // 自動生成一個很難猜的 id
+      url.searchParams.set("trip", trip);
+      window.history.replaceState({}, "", url.toString());
+    }
+    return trip;
+  }
+
+  const tripId = getTripId();
+  const tripRef = doc(db, "trips", tripId);
+
+  // ✅ 4) 匿名登入後，把 Firestore 工具掛到 window 給 Vue 用
+  await signInAnonymously(auth);
+
+  window.__NYC_SYNC__ = {
+    tripId,
+    tripRef,
+    setDoc,
+    onSnapshot
+  };
+
+  console.log("Firebase sync ready. tripId =", tripId);
+</script>
+    
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
 
@@ -566,42 +614,122 @@
                     save();
                 };
 
-                const save = () => {
-                    try {
-                        localStorage.setItem('nyc_street_v6', JSON.stringify({
-                            itinerary: itinerary.value,
-                            bucketList: bucketList.value,
-                            expenses: expenses.value,
-                            homePhoto: homePhoto.value // 儲存照片
-                        }));
-                    } catch (e) {
-                        alert('儲存空間不足，請使用較小的圖片！');
-                    }
-                };
+                let applyingRemote = false;   // 防止遠端更新造成回圈
+let firestoreReady = false;
 
-                onMounted(() => {
-                    const saved = localStorage.getItem('nyc_street_v6');
-                    if (saved) {
-                        const d = JSON.parse(saved);
-                        itinerary.value = d.itinerary || itinerary.value;
-                        bucketList.value = d.bucketList || bucketList.value;
-                        expenses.value = d.expenses || expenses.value;
-                        homePhoto.value = d.homePhoto || homePhoto.value;
-                    }
-                });
+const save = async () => {
+  const payload = {
+    itinerary: itinerary.value,
+    bucketList: bucketList.value,
+    expenses: expenses.value,
+    homePhoto: homePhoto.value,
+    updatedAt: Date.now()
+  };
 
-                return {
-                    activeTab, activeTabName, selectedDayIdx, countdownDays,
-                    itinerary, bucketList, bucketInput, expenses, newExp, settlement, totalExpense,
-                    eventModal, bucketEditModal, homePhoto, fileInput,
-                    getTabIcon, smartAddBucket, openMap, openEventModal, saveEvent, pickFromBucket,
-                    addExpense, handlePhotoUpload, openBucketEdit, saveBucketEdit,
-                    deleteEvent: (i) => { itinerary.value[selectedDayIdx.value].events.splice(i, 1); save(); },
-                    deleteBucket: (i) => { bucketList.value.splice(i, 1); save(); },
-                    removeExpense: (i) => { expenses.value.splice(i, 1); save(); }
-                };
-            }
-        }).mount('#app');
+  // ✅ 本機快取（離線可用）
+  try {
+    localStorage.setItem('nyc_street_v6', JSON.stringify(payload));
+  } catch (e) {
+    alert('儲存空間不足，請使用較小的圖片！');
+  }
+
+  // ✅ 正在套用遠端資料時，不要回寫
+  if (applyingRemote) return;
+
+  // ✅ Firebase 還沒準備好就跳過
+  const sync = window.__NYC_SYNC__;
+  if (!sync || !firestoreReady) return;
+
+  try {
+    await sync.setDoc(sync.tripRef, payload, { merge: true });
+  } catch (err) {
+    console.warn("Firestore save failed:", err);
+  }
+};
+
+                setup() {
+  // ...你原本的 refs/computed ...
+
+  let applyingRemote = false;
+  let firestoreReady = false;
+
+const save = async () => {
+  const payload = {
+    itinerary: itinerary.value,
+    bucketList: bucketList.value,
+    expenses: expenses.value,
+    homePhoto: homePhoto.value,
+    updatedAt: Date.now()
+  };
+
+  // ✅ 本機快取（離線也能用）
+  try {
+    localStorage.setItem("nyc_street_v6", JSON.stringify(payload));
+  } catch (e) {
+    alert("儲存空間不足，請使用較小的圖片！");
+  }
+
+  // ✅ 避免正在套用遠端資料時又回寫（防無限循環）
+  if (applyingRemote) return;
+
+  // ✅ Firestore 還沒準備好就不寫
+  const sync = window.__NYC_SYNC__;
+  if (!sync || !firestoreReady) return;
+
+  try {
+    await sync.setDoc(sync.tripRef, payload, { merge: true });
+  } catch (err) {
+    console.warn("Firestore save failed:", err);
+  }
+};
+                    
+  onMounted(() => {
+    // ✅ 先讀本機
+    const saved = localStorage.getItem('nyc_street_v6');
+    if (saved) {
+      const d = JSON.parse(saved);
+      itinerary.value = d.itinerary || itinerary.value;
+      bucketList.value = d.bucketList || bucketList.value;
+      expenses.value = d.expenses || expenses.value;
+      homePhoto.value = d.homePhoto || homePhoto.value;
+    }
+
+    // ✅ 再接 Firestore
+    const sync = window.__NYC_SYNC__;
+    if (!sync) return;
+
+    firestoreReady = true;
+
+    sync.onSnapshot(sync.tripRef, (snap) => {
+      if (!snap.exists()) return;
+      const d = snap.data();
+
+      applyingRemote = true;
+
+      itinerary.value = d.itinerary || itinerary.value;
+      bucketList.value = d.bucketList || bucketList.value;
+      expenses.value = d.expenses || expenses.value;
+      homePhoto.value = d.homePhoto || homePhoto.value;
+
+      try { localStorage.setItem('nyc_street_v6', JSON.stringify(d)); } catch {}
+
+      applyingRemote = false;
+    });
+  });
+
+  return {
+    // ✅ 這裡要放「你原本完整的回傳項目」
+    activeTab, activeTabName, selectedDayIdx, countdownDays,
+    itinerary, bucketList, bucketInput, expenses, newExp, settlement, totalExpense,
+    eventModal, bucketEditModal, homePhoto, fileInput,
+    getTabIcon, smartAddBucket, openMap, openEventModal, saveEvent, pickFromBucket,
+    addExpense, handlePhotoUpload, openBucketEdit, saveBucketEdit,
+    deleteEvent: (i) => { itinerary.value[selectedDayIdx.value].events.splice(i, 1); save(); },
+    deleteBucket: (i) => { bucketList.value.splice(i, 1); save(); },
+    removeExpense: (i) => { expenses.value.splice(i, 1); save(); }
+  };
+}
+
     </script>
 
     <style>
