@@ -721,22 +721,28 @@
 
         firestoreReady = true;
 
-        sync.onSnapshot(sync.tripRef, (snap) => {
-          if (!snap.exists()) return;
-          const d = snap.data();
+       sync.onSnapshot(sync.tripRef, (snap) => {
+  if (!snap.exists()) {
+    // 🔥 第一次進來，自動建立 trip 文件
+    save();
+    return;
+  }
 
-          applyingRemote = true;
+  const d = snap.data();
+  applyingRemote = true;
 
-          itinerary.value = d.itinerary || itinerary.value;
-          bucketList.value = d.bucketList || bucketList.value;
-          expenses.value = d.expenses || expenses.value;
-          homePhoto.value = d.homePhoto || homePhoto.value;
+  itinerary.value = d.itinerary || itinerary.value;
+  bucketList.value = d.bucketList || bucketList.value;
+  expenses.value = d.expenses || expenses.value;
+  homePhoto.value = d.homePhoto || homePhoto.value;
 
-          try { localStorage.setItem("nyc_street_v6", JSON.stringify(d)); } catch {}
+  try {
+    localStorage.setItem("nyc_street_v6", JSON.stringify(d));
+  } catch {}
 
-          applyingRemote = false;
-        });
-      });
+  applyingRemote = false;
+});
+          
 if (eventListEl.value) {
   new Sortable(eventListEl.value, {
     animation: 150,
