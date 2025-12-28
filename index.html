@@ -516,7 +516,7 @@
 </script>
     
   <script>
-  const { createApp, ref, computed, onMounted } = Vue;
+const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
 
   createApp({
     setup() {
@@ -527,7 +527,27 @@
       const homePhoto = ref("./image.png");
       const fileInput = ref(null);
     const eventListEl = ref(null);
+let sortable = null;
 
+const initSortable = async () => {
+  await nextTick(); // 等 DOM 出現
+
+  if (!eventListEl.value) return;
+
+  if (sortable) sortable.destroy();
+
+  sortable = new Sortable(eventListEl.value, {
+    animation: 150,
+    handle: ".drag-handle",
+    onEnd: (evt) => {
+      const list = itinerary.value[selectedDayIdx.value].events;
+      const moved = list.splice(evt.oldIndex, 1)[0];
+      list.splice(evt.newIndex, 0, moved);
+      save();
+    }
+  });
+};
+        
       const itinerary = ref([
         { date: "2026-01-16", weekday: "FRI", label: "THE ARRIVAL", temp: "2", weatherIcon: "fas fa-snowflake", events: [] },
         { date: "2026-01-17", weekday: "SAT", label: "UPTOWN BEATS", temp: "4", weatherIcon: "fas fa-cloud", events: [] },
@@ -703,58 +723,58 @@
         save();
       };
 
-      // ====== mount: local first, then firestore realtime ======
-      onMounted(() => {
-        // 先讀本機
-        const saved = localStorage.getItem("nyc_street_v6");
-        if (saved) {
-          const d = JSON.parse(saved);
-          itinerary.value = d.itinerary || itinerary.value;
-          bucketList.value = d.bucketList || bucketList.value;
-          expenses.value = d.expenses || expenses.value;
-          homePhoto.value = d.homePhoto || homePhoto.value;
-        }
+      // ====== mount: local first, then firestore realtime =====
+// ✅ 換天就重新綁（很重要）
+watch(selectedDayIdx, () => initSortable());
 
-        // 再接 Firestore
-        const sync = window.__NYC_SYNC__;
-        if (!sync) return;
+// ✅ 切到 Itinerary 時也要綁（因為 v-if 才會把 DOM 掛上）
+watch(activeTab, (tab) => {
+  if (tab === "itinerary") initSortable();
+});
 
-        firestoreReady = true;
-
-       sync.onSnapshot(sync.tripRef, (snap) => {
-  if (!snap.exists()) {
-    // 🔥 第一次進來，自動建立 trip 文件
-    save();
-    return;
+onMounted(() => {
+  // 先讀本機
+  const saved = localStorage.getItem("nyc_street_v6");
+  if (saved) {
+    const d = JSON.parse(saved);
+    itinerary.value = d.itinerary || itinerary.value;
+    bucketList.value = d.bucketList || bucketList.value;
+    expenses.value = d.expenses || expenses.value;
+    homePhoto.value = d.homePhoto || homePhoto.value;
   }
 
-  const d = snap.data();
-  applyingRemote = true;
+  // 再接 Firestore
+  const sync = window.__NYC_SYNC__;
+  if (!sync) return;
 
-  itinerary.value = d.itinerary || itinerary.value;
-  bucketList.value = d.bucketList || bucketList.value;
-  expenses.value = d.expenses || expenses.value;
-  homePhoto.value = d.homePhoto || homePhoto.value;
+  firestoreReady = true;
 
-  try {
-    localStorage.setItem("nyc_street_v6", JSON.stringify(d));
-  } catch {}
+  sync.onSnapshot(sync.tripRef, (snap) => {
+    if (!snap.exists()) {
+      save();
+      return;
+    }
 
-  applyingRemote = false;
+    const d = snap.data();
+    applyingRemote = true;
+
+    itinerary.value = d.itinerary || itinerary.value;
+    bucketList.value = d.bucketList || bucketList.value;
+    expenses.value = d.expenses || expenses.value;
+    homePhoto.value = d.homePhoto || homePhoto.value;
+
+    try { localStorage.setItem("nyc_street_v6", JSON.stringify(d)); } catch {}
+
+    applyingRemote = false;
+
+    // ✅ 收到遠端資料後也重新綁一次（避免 DOM 換掉）
+    initSortable();
+  });
+
+  // ✅ 初次進來綁
+  initSortable();
 });
           
-if (eventListEl.value) {
-  new Sortable(eventListEl.value, {
-    animation: 150,
-    handle: ".drag-handle",
-    onEnd: (evt) => {
-      const list = itinerary.value[selectedDayIdx.value].events;
-      const moved = list.splice(evt.oldIndex, 1)[0];
-      list.splice(evt.newIndex, 0, moved);
-      save();
-    }
-  });
-}
       // ====== expose to template ======
       return {
         activeTab,
